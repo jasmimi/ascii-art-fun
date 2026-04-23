@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>✦ ASCII PHOTO BOOTH ✦</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=UnifrakturMaguntia&display=swap');
+
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a000f;
+      --surface:   #110018;
+      --border:    #7b00ff;
+      --glow:      #bf00ff;
+      --accent1:   #ff00c8;
+      --accent2:   #00ffe7;
+      --text:      #e8c8ff;
+      --mono:      'Share Tech Mono', 'Courier New', monospace;
+      --gothic:    'UnifrakturMaguntia', 'Times New Roman', serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      overflow-x: hidden;
+    }
+
+    /* ── Scanline overlay ── */
+    body::after {
+      content: '';
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0,0,0,.18) 3px,
+        rgba(0,0,0,.18) 4px
+      );
+      z-index: 9999;
+    }
+
+    /* ── Animated noise / vignette ── */
+    body::before {
+      content: '';
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,.75) 100%);
+      z-index: 9998;
+    }
+
+    /* ── Page layout ── */
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.6rem;
+      padding: 2rem 1rem 3rem;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      line-height: 1.1;
+    }
+
+    header h1 {
+      font-family: var(--gothic);
+      font-size: clamp(2rem, 6vw, 3.8rem);
+      color: var(--accent1);
+      text-shadow:
+        0 0 8px  var(--accent1),
+        0 0 24px var(--glow),
+        0 0 60px var(--glow);
+      letter-spacing: .05em;
+    }
+
+    header p {
+      font-size: .75rem;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      text-shadow: 0 0 6px var(--accent2);
+      margin-top: .35rem;
+    }
+
+    /* ── Booth frame ── */
+    .booth {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      box-shadow:
+        0 0 0 1px var(--bg),
+        0 0 18px var(--glow),
+        inset 0 0 30px rgba(123,0,255,.08);
+      background: var(--surface);
+      padding: 1.2rem 1.4rem 1.4rem;
+    }
+
+    /* corner ornaments */
+    .booth::before,
+    .booth::after {
+      content: '✦';
+      position: absolute;
+      font-size: 1.2rem;
+      color: var(--accent2);
+      text-shadow: 0 0 8px var(--accent2);
+    }
+    .booth::before { top: .5rem; left: .7rem; }
+    .booth::after  { bottom: .5rem; right: .7rem; }
+
+    /* ── ASCII display ── */
+    #ascii-output {
+      display: block;
+      font-family: var(--mono);
+      font-size: 5.5px;
+      line-height: 1.0;
+      letter-spacing: .06em;
+      white-space: pre;
+      color: var(--accent2);
+      text-shadow: 0 0 4px var(--accent2);
+      /* keep a fixed size so the page doesn't jump */
+      width:  480px;
+      height: 270px;
+      overflow: hidden;
+      background: #000;
+      border: 1px solid rgba(123,0,255,.4);
+    }
+
+    /* blinking cursor line while idle */
+    #ascii-output.idle::after {
+      content: '█';
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* ── Status bar ── */
+    #status {
+      width: 100%;
+      font-size: .65rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--border);
+      text-shadow: 0 0 4px var(--border);
+      margin-top: .5rem;
+      text-align: center;
+      min-height: 1.1em;
+    }
+
+    /* ── Controls row ── */
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin-top: .8rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      font-family: var(--mono);
+      font-size: .85rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 2px;
+      border: 1.5px solid;
+      padding: .55rem 1.6rem;
+      transition: box-shadow .15s, background .15s, color .15s;
+      outline: none;
+    }
+
+    #btn-start {
+      border-color: var(--accent2);
+      color: var(--accent2);
+      background: transparent;
+    }
+    #btn-start:hover, #btn-start:focus-visible {
+      background: var(--accent2);
+      color: #000;
+      box-shadow: 0 0 14px var(--accent2);
+    }
+
+    #btn-capture {
+      border-color: var(--accent1);
+      color: var(--accent1);
+      background: transparent;
+    }
+    #btn-capture:hover, #btn-capture:focus-visible {
+      background: var(--accent1);
+      color: #000;
+      box-shadow: 0 0 14px var(--accent1);
+    }
+    #btn-capture:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+    }
+
+    /* ── Toast notification ── */
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(2rem);
+      background: var(--surface);
+      border: 1px solid var(--accent1);
+      color: var(--accent1);
+      font-size: .8rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      padding: .6rem 1.4rem;
+      border-radius: 3px;
+      box-shadow: 0 0 12px var(--accent1);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s, transform .25s;
+      z-index: 10000;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Hidden canvas (for pixel sampling) ── */
+    #capture-canvas { display: none; }
+
+    /* ── Footer ── */
+    footer {
+      font-size: .6rem;
+      letter-spacing: .2em;
+      color: rgba(255,255,255,.2);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <header>
+    <h1>✦ ASCII Photo Booth ✦</h1>
+    <p>gothic &nbsp;·&nbsp; y2k &nbsp;·&nbsp; live cam</p>
+  </header>
+
+  <div class="booth">
+    <pre id="ascii-output" class="idle" aria-live="polite" aria-label="Live ASCII art video feed"></pre>
+    <div id="status">press &laquo;start camera&raquo; to begin</div>
+  </div>
+
+  <div class="controls">
+    <button id="btn-start">⏻ Start Camera</button>
+    <button id="btn-capture" disabled>⬡ Capture</button>
+  </div>
+
+  <footer>[ ascii photo booth &nbsp;·&nbsp; clipboard saves your art ]</footer>
+
+</div>
+
+<!-- Hidden elements -->
+<video id="video" autoplay playsinline muted style="display:none"></video>
+<canvas id="capture-canvas"></canvas>
+<div id="toast" role="alert" aria-live="assertive"></div>
+
+<script>
+  /* ── ASCII character ramp (dark → bright) ── */
+  const RAMP = ' .\'`^",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$';
+
+  /* ── Config ── */
+  const COLS = 120;   // ASCII columns
+  const ROWS = 68;    // ASCII rows  (≈ 16:9 with char aspect correction)
+  const FPS  = 20;    // target frames per second
+
+  /* ── DOM refs ── */
+  const video      = document.getElementById('video');
+  const canvas     = document.getElementById('capture-canvas');
+  const ctx        = canvas.getContext('2d', { willReadFrequently: true });
+  const output     = document.getElementById('ascii-output');
+  const statusEl   = document.getElementById('status');
+  const btnStart   = document.getElementById('btn-start');
+  const btnCapture = document.getElementById('btn-capture');
+  const toast      = document.getElementById('toast');
+
+  canvas.width  = COLS;
+  canvas.height = ROWS;
+
+  let stream      = null;
+  let rafId       = null;
+  let lastFrame   = 0;
+  const interval  = 1000 / FPS;
+
+  /* ── Pixel → ASCII ── */
+  function frameToAscii() {
+    // mirror the canvas so the image feels like a mirror (selfie-cam)
+    ctx.save();
+    ctx.translate(COLS, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, COLS, ROWS);
+    ctx.restore();
+
+    const { data } = ctx.getImageData(0, 0, COLS, ROWS);
+    let art = '';
+
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS; col++) {
+        const i = (row * COLS + col) * 4;
+        const r = data[i], g = data[i+1], b = data[i+2];
+        // perceived luminance
+        const lum = 0.299*r + 0.587*g + 0.114*b;
+        const idx = Math.floor((lum / 255) * (RAMP.length - 1));
+        art += RAMP[idx];
+      }
+      art += '\n';
+    }
+
+    return art;
+  }
+
+  /* ── Render loop ── */
+  function renderLoop(ts) {
+    rafId = requestAnimationFrame(renderLoop);
+    if (ts - lastFrame < interval) return;
+    lastFrame = ts;
+
+    if (video.readyState >= video.HAVE_ENOUGH_DATA) {
+      output.textContent = frameToAscii();
+    }
+  }
+
+  /* ── Start camera ── */
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 360 }, facingMode: 'user' },
+        audio: false
+      });
+      video.srcObject = stream;
+      await video.play();
+
+      output.classList.remove('idle');
+      setStatus('live &nbsp;●');
+      btnStart.textContent = '⏻ Stop Camera';
+      btnStart.style.borderColor = 'var(--accent1)';
+      btnStart.style.color = 'var(--accent1)';
+      btnCapture.disabled = false;
+
+      rafId = requestAnimationFrame(renderLoop);
+    } catch (err) {
+      setStatus('camera error: ' + err.message);
+      console.error(err);
+    }
+  }
+
+  /* ── Stop camera ── */
+  function stopCamera() {
+    cancelAnimationFrame(rafId);
+    rafId = null;
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    video.srcObject = null;
+
+    output.textContent = '';
+    output.classList.add('idle');
+    setStatus('press &laquo;start camera&raquo; to begin');
+    btnStart.textContent = '⏻ Start Camera';
+    btnStart.style.borderColor = '';
+    btnStart.style.color = '';
+    btnCapture.disabled = true;
+  }
+
+  /* ── Toggle button ── */
+  btnStart.addEventListener('click', () => {
+    if (stream) stopCamera();
+    else        startCamera();
+  });
+
+  /* ── Capture → clipboard ── */
+  btnCapture.addEventListener('click', async () => {
+    const art = output.textContent;
+    if (!art.trim()) return;
+
+    try {
+      await navigator.clipboard.writeText(art);
+      showToast('✦ copied to clipboard ✦');
+    } catch {
+      /* fallback for browsers that deny clipboard without interaction context */
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = art;
+        ta.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        showToast('✦ copied to clipboard ✦');
+      } catch {
+        showToast('⚠ clipboard blocked — try a modern browser');
+      }
+    }
+  });
+
+  /* ── Toast helper ── */
+  let toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+  }
+
+  /* ── Status helper ── */
+  function setStatus(html) {
+    statusEl.innerHTML = html;
+  }
+</script>
+</body>
+</html>
